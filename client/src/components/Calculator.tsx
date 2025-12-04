@@ -12,10 +12,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+
 import { 
   Car, Zap, Plane, Trash2, ArrowRight, Download, RefreshCw, CheckCircle2
 } from 'lucide-react';
-import { calculateFootprint, generatePDF, CarbonData, CarbonResults } from '@/lib/calculator';
+import { 
+  calculateFootprint, generatePDF, CarbonData, CarbonResults, 
+  FuelType, Unit, RefrigerantType 
+} from '@/lib/calculator'; // Import new enums
+
 import { toast } from '@/hooks/use-toast';
 
 const COLORS = ['#16a34a', '#0d9488', '#0284c7', '#84cc16'];
@@ -28,10 +35,26 @@ export function Calculator() {
   const [stats, setStats] = useState({ count: 1243 }); // Mock starting stats
   
   const [formData, setFormData] = useState<CarbonData>({
-    fuel: 0,
-    electricity: 0,
-    travel: 0,
-    waste: 0
+    // Initializing all fields as undefined to reflect optional nature
+    s1_fuel_type: undefined,
+    s1_fuel_amount: undefined,
+    s1_fuel_unit: undefined,
+    s1_refrigerant_type: undefined,
+    s1_refrigerant_amount_kg: undefined,
+    
+    s2_electricity_kwh: undefined,
+    s2_heating_gj: undefined,
+
+    s3_water_m3: undefined,
+    s3_paper_kg: undefined,
+    s3_paper_eco_labeled: false,
+    s3_solid_waste_kg: undefined,
+    s3_wastewater_m3: undefined,
+    s3_air_travel_km: undefined,
+    s3_air_travel_class: undefined,
+    s3_rail_travel_km: undefined,
+    s3_taxi_bus_travel_km: undefined,
+    s3_taxi_bus_vehicle_type: undefined,
   });
 
   useEffect(() => {
@@ -42,20 +65,30 @@ export function Calculator() {
     }
   }, []);
 
-  const handleInputChange = (field: keyof CarbonData, value: string) => {
+  // Generic handler for input changes
+  const handleInputChange = (field: keyof CarbonData, value: string | boolean) => {
+    setFormData(prev => {
+      const parsedValue = typeof value === 'string' ? parseFloat(value) : value;
+      return {
+        ...prev,
+        [field]: parsedValue || (typeof parsedValue === 'boolean' ? parsedValue : undefined)
+      };
+    });
+  };
+
+  // Generic handler for Select component changes (string values)
+  const handleSelectChange = (field: keyof CarbonData, value: string) => {
     setFormData(prev => ({
       ...prev,
-      [field]: parseFloat(value) || 0
+      [field]: value
     }));
   };
 
-  const handleCalculate = () => {
+  const handleCalculate = async () => {
     setLoading(true);
-    // Simulate API delay
-    setTimeout(() => {
-      const res = calculateFootprint(formData);
+    try {
+      const res = await calculateFootprint(formData);
       setResults(res);
-      setLoading(false);
       setStep(4);
       
       // Update mock database
@@ -66,7 +99,16 @@ export function Calculator() {
         title: "Calculation Complete",
         description: "Your carbon footprint has been analyzed successfully.",
       });
-    }, 800);
+    } catch (error: any) {
+      toast({
+        title: "Calculation Failed",
+        description: error.message || "An unexpected error occurred during calculation.",
+        variant: "destructive",
+      });
+      console.error("Calculation error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDownload = () => {
@@ -82,7 +124,15 @@ export function Calculator() {
   const reset = () => {
     setStep(1);
     setResults(null);
-    setFormData({ fuel: 0, electricity: 0, travel: 0, waste: 0 });
+    setFormData({
+      s1_fuel_type: undefined, s1_fuel_amount: undefined, s1_fuel_unit: undefined,
+      s1_refrigerant_type: undefined, s1_refrigerant_amount_kg: undefined,
+      s2_electricity_kwh: undefined, s2_heating_gj: undefined,
+      s3_water_m3: undefined, s3_paper_kg: undefined, s3_paper_eco_labeled: false,
+      s3_solid_waste_kg: undefined, s3_wastewater_m3: undefined,
+      s3_air_travel_km: undefined, s3_air_travel_class: undefined,
+      s3_rail_travel_km: undefined, s3_taxi_bus_travel_km: undefined, s3_taxi_bus_vehicle_type: undefined,
+    });
   };
 
   const chartData = results ? [
@@ -139,24 +189,79 @@ export function Calculator() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold">{t('calc.step1')}</h3>
-                  <p className="text-muted-foreground">Direct GHG emissions from sources owned or controlled by the company.</p>
+                  <p className="text-muted-foreground">Direct GHG emissions from sources owned or controlled by the company (Combustion & Fugitive Emissions).</p>
                 </div>
               </div>
               
-              <div className="space-y-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="fuel">{t('calc.fuel')}</Label>
-                  <Input 
-                    id="fuel"
-                    data-testid="input-fuel"
-                    type="number" 
-                    placeholder={t('calc.fuel.placeholder')}
-                    value={formData.fuel || ''}
-                    onChange={(e) => handleInputChange('fuel', e.target.value)}
-                    className="text-lg p-6"
-                  />
-                </div>
-              </div>
+              <Tabs defaultValue="combustion" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="combustion">Combustion</TabsTrigger>
+                  <TabsTrigger value="fugitive">Fugitive Emissions</TabsTrigger>
+                </TabsList>
+                <TabsContent value="combustion" className="space-y-4 pt-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="s1_fuel_type">Fuel Type</Label>
+                    <Select onValueChange={(value) => handleSelectChange('s1_fuel_type', value)} value={formData.s1_fuel_type}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Fuel Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.values(FuelType).map(type => (
+                          <SelectItem key={type} value={type}>{type}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="s1_fuel_amount">Amount Consumed</Label>
+                    <Input 
+                      id="s1_fuel_amount"
+                      type="number" 
+                      placeholder="e.g., 1000"
+                      value={formData.s1_fuel_amount || ''}
+                      onChange={(e) => handleInputChange('s1_fuel_amount', e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="s1_fuel_unit">Unit</Label>
+                    <Select onValueChange={(value) => handleSelectChange('s1_fuel_unit', value)} value={formData.s1_fuel_unit}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Unit" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.values(Unit).filter(unit => [Unit.M3, Unit.LITERS, Unit.TONNES].includes(unit as Unit)).map(unit => (
+                          <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </TabsContent>
+                <TabsContent value="fugitive" className="space-y-4 pt-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="s1_refrigerant_type">Refrigerant Type</Label>
+                    <Select onValueChange={(value) => handleSelectChange('s1_refrigerant_type', value)} value={formData.s1_refrigerant_type}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Refrigerant Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.values(RefrigerantType).map(type => (
+                          <SelectItem key={type} value={type}>{type}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="s1_refrigerant_amount_kg">Amount Refilled (kg)</Label>
+                    <Input 
+                      id="s1_refrigerant_amount_kg"
+                      type="number" 
+                      placeholder="e.g., 50"
+                      value={formData.s1_refrigerant_amount_kg || ''}
+                      onChange={(e) => handleInputChange('s1_refrigerant_amount_kg', e.target.value)}
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
             </motion.div>
           )}
 
@@ -168,21 +273,29 @@ export function Calculator() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold">{t('calc.step2')}</h3>
-                  <p className="text-muted-foreground">Indirect GHG emissions from the generation of purchased electricity.</p>
+                  <p className="text-muted-foreground">Indirect GHG emissions from the generation of purchased electricity & district heating.</p>
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-6">
                 <div className="grid gap-2">
-                  <Label htmlFor="electricity">{t('calc.electricity')}</Label>
+                  <Label htmlFor="s2_electricity_kwh">Electricity Consumption (kWh)</Label>
                   <Input 
-                    id="electricity"
-                    data-testid="input-electricity"
+                    id="s2_electricity_kwh"
                     type="number" 
-                    placeholder={t('calc.electricity.placeholder')}
-                    value={formData.electricity || ''}
-                    onChange={(e) => handleInputChange('electricity', e.target.value)}
-                    className="text-lg p-6"
+                    placeholder="e.g., 5000"
+                    value={formData.s2_electricity_kwh || ''}
+                    onChange={(e) => handleInputChange('s2_electricity_kwh', e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="s2_heating_gj">District Heating Consumption (GJ)</Label>
+                  <Input 
+                    id="s2_heating_gj"
+                    type="number" 
+                    placeholder="e.g., 200"
+                    value={formData.s2_heating_gj || ''}
+                    onChange={(e) => handleInputChange('s2_heating_gj', e.target.value)}
                   />
                 </div>
               </div>
@@ -201,32 +314,127 @@ export function Calculator() {
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="grid gap-2">
-                  <Label htmlFor="travel">{t('calc.travel')}</Label>
-                  <Input 
-                    id="travel"
-                    data-testid="input-travel"
-                    type="number" 
-                    placeholder={t('calc.travel.placeholder')}
-                    value={formData.travel || ''}
-                    onChange={(e) => handleInputChange('travel', e.target.value)}
-                    className="text-lg p-6"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="waste">{t('calc.waste')}</Label>
-                  <Input 
-                    id="waste"
-                    data-testid="input-waste"
-                    type="number" 
-                    placeholder={t('calc.waste.placeholder')}
-                    value={formData.waste || ''}
-                    onChange={(e) => handleInputChange('waste', e.target.value)}
-                    className="text-lg p-6"
-                  />
-                </div>
-              </div>
+              <Tabs defaultValue="purchased_goods" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="purchased_goods">Purchased Goods/Services</TabsTrigger>
+                  <TabsTrigger value="waste_generated">Waste Generated</TabsTrigger>
+                  <TabsTrigger value="business_travel">Business Travel</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="purchased_goods" className="space-y-4 pt-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="s3_water_m3">Water Supply (m³)</Label>
+                    <Input 
+                      id="s3_water_m3"
+                      type="number" 
+                      placeholder="e.g., 50"
+                      value={formData.s3_water_m3 || ''}
+                      onChange={(e) => handleInputChange('s3_water_m3', e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="s3_paper_kg">Paper Usage (kg)</Label>
+                    <Input 
+                      id="s3_paper_kg"
+                      type="number" 
+                      placeholder="e.g., 100"
+                      value={formData.s3_paper_kg || ''}
+                      onChange={(e) => handleInputChange('s3_paper_kg', e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="s3_paper_eco_labeled"
+                      checked={formData.s3_paper_eco_labeled}
+                      onCheckedChange={(checked: boolean) => handleInputChange('s3_paper_eco_labeled', checked)}
+                    />
+                    <Label htmlFor="s3_paper_eco_labeled">Eco-labeled Paper</Label>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="waste_generated" className="space-y-4 pt-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="s3_solid_waste_kg">Solid Waste Disposal (kg)</Label>
+                    <Input 
+                      id="s3_solid_waste_kg"
+                      type="number" 
+                      placeholder="e.g., 200"
+                      value={formData.s3_solid_waste_kg || ''}
+                      onChange={(e) => handleInputChange('s3_solid_waste_kg', e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="s3_wastewater_m3">Wastewater Treatment (m³)</Label>
+                    <Input 
+                      id="s3_wastewater_m3"
+                      type="number" 
+                      placeholder="e.g., 75"
+                      value={formData.s3_wastewater_m3 || ''}
+                      onChange={(e) => handleInputChange('s3_wastewater_m3', e.target.value)}
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="business_travel" className="space-y-4 pt-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="s3_air_travel_km">Air Travel (km)</Label>
+                    <Input 
+                      id="s3_air_travel_km"
+                      type="number" 
+                      placeholder="e.g., 1000"
+                      value={formData.s3_air_travel_km || ''}
+                      onChange={(e) => handleInputChange('s3_air_travel_km', e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="s3_air_travel_class">Air Travel Class</Label>
+                    <Select onValueChange={(value) => handleSelectChange('s3_air_travel_class', value)} value={formData.s3_air_travel_class}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="economy">Economy</SelectItem>
+                        <SelectItem value="business">Business</SelectItem>
+                        {/* Add other classes if needed */}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="s3_rail_travel_km">Rail Travel (km)</Label>
+                    <Input 
+                      id="s3_rail_travel_km"
+                      type="number" 
+                      placeholder="e.g., 500"
+                      value={formData.s3_rail_travel_km || ''}
+                      onChange={(e) => handleInputChange('s3_rail_travel_km', e.target.value)}
+                    />
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="grid gap-2">
+                      <Label htmlFor="s3_taxi_bus_travel_km">Taxi/Bus Travel (km)</Label>
+                      <Input 
+                        id="s3_taxi_bus_travel_km"
+                        type="number" 
+                        placeholder="e.g., 100"
+                        value={formData.s3_taxi_bus_travel_km || ''}
+                        onChange={(e) => handleInputChange('s3_taxi_bus_travel_km', e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="s3_taxi_bus_vehicle_type">Vehicle Type</Label>
+                      <Select onValueChange={(value) => handleSelectChange('s3_taxi_bus_vehicle_type', value)} value={formData.s3_taxi_bus_vehicle_type}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Vehicle" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="taxi">Taxi</SelectItem>
+                          <SelectItem value="bus">Bus</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </motion.div>
           )}
 
