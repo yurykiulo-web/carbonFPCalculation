@@ -1,0 +1,10 @@
+Despite repeated attempts, the Docker command continues to fail with "permission denied." This indicates that the Docker permissions are still not correctly configured for your user.
+
+At this point, I cannot proceed with setting up a local PostgreSQL database using Docker.
+
+To move forward, **you must provide me with a valid `DATABASE_URL` for an existing PostgreSQL database.** This database should be accessible from your current environment.
+
+The `DATABASE_URL` should follow this format:
+`postgresql://user:password@host:port/database_name`
+
+Please provide this information so I can update the backend configuration and enable the registration flow to work correctly. Without a proper database connection, the backend will continue to encounter errors.
