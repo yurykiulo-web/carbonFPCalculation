@@ -15,10 +15,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
 app = FastAPI()
 
 # Password hashing
@@ -116,10 +112,10 @@ async def read_users_me(current_user: DBUser = Depends(get_current_user)):
 # Create user
 @app.post("/api/users", response_model=User)
 def create_user(user_in: UserIn, db: Session = Depends(get_db)):
-    logger.info(f"Attempting to register new user: {user_in.username}")
+    logging.info(f"Attempting to register new user: {user_in.username}")
     db_user = db.query(DBUser).filter(DBUser.username == user_in.username).first()
     if db_user:
-        logger.warning(f"Registration failed: Username already registered: {user_in.username}")
+        logging.warning(f"Registration failed: Username already registered: {user_in.username}")
         raise HTTPException(status_code=400, detail="Username already registered")
     
     hashed_password = pwd_context.hash(user_in.password)
@@ -128,7 +124,7 @@ def create_user(user_in: UserIn, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     
-    logger.info(f"Successfully registered new user: {new_user.username} with ID: {new_user.id}")
+    logging.info(f"Successfully registered new user: {new_user.username} with ID: {new_user.id}")
     return {"id": new_user.id, "username": new_user.username}
 
 # Get all users
