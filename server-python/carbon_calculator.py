@@ -1,5 +1,6 @@
 from typing import List, Optional, Dict, Union
 from pydantic import BaseModel, Field
+from enum import Enum
 
 # --- Constants ---
 # Global Warming Potentials (GWP)
@@ -66,7 +67,7 @@ def calculate_co2e(mass_co2: float, mass_ch4: float, mass_n2o: float) -> float:
     return mass_co2 + (mass_ch4 * GWP_CH4) + (mass_n2o * GWP_N2O)
 
 # --- Pydantic Models for Input and Output ---
-class FuelType(str, BaseModel):
+class FuelType(str, Enum):
     NATURAL_GAS = "Natural Gas"
     HEATING_OIL = "Heating Oil"
     DIESEL = "Diesel"
@@ -74,7 +75,7 @@ class FuelType(str, BaseModel):
     COAL = "Coal"
     ELECTRICITY = "Electricity" # Although not in Scope 1 combustion, adding for completeness if needed later
 
-class Unit(str, BaseModel):
+class Unit(str, Enum):
     M3 = "m3"
     LITERS = "l"
     TONNES = "t"
@@ -100,7 +101,7 @@ class CombustionInput(BaseModel):
     emission_factor_ch4_kg_gj: Optional[float] = Field(None, gt=0, description="CH4 Emission Factor in kg/GJ")
     emission_factor_n2o_kg_gj: Optional[float] = Field(None, gt=0, description="N2O Emission Factor in kg/GJ")
 
-class RefrigerantType(str, BaseModel):
+class RefrigerantType(str, Enum):
     R407C = "R407C"
     R32 = "R32"
     R410A = "R410A"
