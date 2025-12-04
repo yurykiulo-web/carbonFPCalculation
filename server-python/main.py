@@ -2,7 +2,6 @@ import logging
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
-import uuid
 from passlib.context import CryptContext
 from typing import List
 from datetime import datetime, timedelta
@@ -12,10 +11,19 @@ from sqlalchemy.orm import Session
 from .database import SessionLocal, engine, Base
 from .models import User as DBUser
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -32,7 +40,7 @@ class UserIn(BaseModel):
     password: str
 
 class User(BaseModel):
-    id: uuid.UUID
+    id: int
     username: str
 
 class Token(BaseModel):
@@ -119,7 +127,7 @@ def create_user(user_in: UserIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Username already registered")
     
     hashed_password = pwd_context.hash(user_in.password)
-    new_user = DBUser(username=user_in.username, password=hashed_password, id=uuid.uuid4())
+    new_user = DBUser(username=user_in.username, password=hashed_password)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
@@ -135,7 +143,7 @@ def get_all_users(current_user: DBUser = Depends(get_current_user), db: Session 
 
 # Get user by ID
 @app.get("/api/users/{user_id}", response_model=User)
-def get_user_by_id(user_id: uuid.UUID, current_user: DBUser = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_user_by_id(user_id: int, current_user: DBUser = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(DBUser).filter(DBUser.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

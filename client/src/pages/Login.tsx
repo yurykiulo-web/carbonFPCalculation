@@ -12,7 +12,7 @@ const Login = () => {
     setError("");
 
     try {
-      const response = await fetch("/token", {
+      const response = await fetch("http://localhost:8000/token", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
