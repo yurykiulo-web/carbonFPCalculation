@@ -12,6 +12,11 @@ from .database import SessionLocal, engine, Base
 from .models import User as DBUser
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+from .carbon_calculator import (
+    Scope1CalculationInput, Scope1Output, calculate_scope1_emissions,
+    Scope2CalculationInput, Scope2Output, calculate_scope2_emissions,
+    Scope3CalculationInput, Scope3Output, calculate_scope3_emissions
+)
 
 load_dotenv()
 
@@ -147,4 +152,36 @@ def get_user_by_id(user_id: int, current_user: DBUser = Depends(get_current_user
     user = db.query(DBUser).filter(DBUser.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return {"id": user.id, "username": user.username}
+    
+@app.post("/api/calculate/scope1", response_model=Scope1Output)
+async def calculate_scope1(
+    input_data: Scope1CalculationInput,
+    current_user: DBUser = Depends(get_current_user) # Assuming Scope 1 calculation requires authentication
+):
+    try:
+        result = calculate_scope1_emissions(input_data)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/calculate/scope2", response_model=Scope2Output)
+async def calculate_scope2(
+    input_data: Scope2CalculationInput,
+    current_user: DBUser = Depends(get_current_user) # Assuming Scope 2 calculation requires authentication
+):
+    try:
+        result = calculate_scope2_emissions(input_data)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/calculate/scope3", response_model=Scope3Output)
+async def calculate_scope3(
+    input_data: Scope3CalculationInput,
+    current_user: DBUser = Depends(get_current_user) # Assuming Scope 3 calculation requires authentication
+):
+    try:
+        result = calculate_scope3_emissions(input_data)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
