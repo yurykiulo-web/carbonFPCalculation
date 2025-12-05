@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 
+// Define a default URL for local development if the environment variable is not set
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+
 const Register = () => {
   const [, setLocation] = useLocation();
   const [username, setUsername] = useState("");
@@ -14,7 +17,7 @@ const Register = () => {
     setSuccess("");
 
     try {
-      const response = await fetch("http://localhost:8000/api/users", {
+      const response = await fetch(`${BACKEND_URL}/api/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
