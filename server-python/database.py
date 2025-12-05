@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL") | "postgresql://user1:rreUeKhGQTYaGuuKJ4830qzrPXLdl6yQ@dpg-d4pac7ur433s73eii5tg-a/carbonfootprinttracker"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
